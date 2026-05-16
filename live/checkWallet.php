@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['address'])) {
                placeholder="Enter wallet address (e.g., 0x... or demo_safe)" size="50" autocomplete="off">
         <br><br>
         <button type="submit">Analyze Wallet</button>
-        <a href="index.php">
+        <a href="../index.php">
             <button type="button">Back</button>
         </a>
     </form>

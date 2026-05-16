@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="username">GitHub Username:</label><br>
         <input type="text" id="username" name="username" placeholder="e.g., octocat" required autocomplete="off">
         <button type="submit">Generate Code</button>
-        <a href="index.php">
+        <a href="../index.html">
             <button type="button">Back</button>
         </a>
     </form>

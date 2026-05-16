@@ -96,7 +96,7 @@ a.button.full-width {
     <title>Clankeradar</title>
 </head>
 <body>
-    <a type="button" class="button" href="walletVerify.php">Link Social Media Account to your Wallet</a><br><br>
-    <a type="button" class="button" href="checkWallet.php">Check Account Status</a>
+    <a type="button" class="button" href="live/walletVerify.php">Link Social Media Account to your Wallet</a><br><br>
+    <a type="button" class="button" href="live/checkWallet.php">Check Account Status</a>
 </body>
 </html>

@@ -1,7 +1,14 @@
 <?php
 // api/wallet_analysis.php
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
 require_once '../controllers/checkController.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit;
+}
 
 // Check if request is POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -9,8 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Get the wallet address from POST data
-$address = trim($_POST['address'] ?? '');
+$input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    $input = [];
+}
+
+// Get the wallet address from POST data or JSON payload
+$address = trim($_POST['address'] ?? $input['address'] ?? '');
 
 if (empty($address)) {
     echo json_encode(['success' => false, 'error' => 'Wallet address is required']);
@@ -54,12 +66,15 @@ try {
         'flagged_interactions' => $result['flagged_interactions'],
         'total_flagged_count' => $result['total_flagged_count'],
         'analyzed_transactions' => $result['analyzed_transactions'],
-        'last_transaction' => $lastTransaction
+        'last_transaction' => $lastTransaction ?? ($result['last_transaction'] ?? null),
+        'balance' => $result['balance'] ?? null,
+        'is_demo' => $result['is_demo'] ?? false
     ];
     
     echo json_encode($response);
     
-} catch (Exception $e) {
+} catch (Throwable $e) {
+    http_response_code(200);
     echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
 }
 ?>

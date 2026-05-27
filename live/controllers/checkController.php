@@ -3,7 +3,7 @@
 
 class checkController {
     protected ?string $apiKey;
-    private bool $demoMode = false; // Enable demo mode
+    private bool $demoMode = false;
     
     // Hardcoded demo users with realistic data
     private array $demoUsers = [
@@ -101,21 +101,25 @@ class checkController {
     public function __construct(?string $apiKey = null) {
         $this->apiKey = $apiKey;
     }
+
+    private function startsWith(string $value, string $prefix): bool {
+        return substr($value, 0, strlen($prefix)) === $prefix;
+    }
     
     /**
      * Check if we have a hardcoded demo user
      */
     private function isDemoUser(string $address): bool {
-        return isset($this->demoUsers[$address]) || str_starts_with($address, 'demo_');
+        return isset($this->demoUsers[$address]) || $this->startsWith($address, 'demo_');
     }
     
     /**
      * Get demo user data
      */
-    private function getDemoUserData(string $address): array {
+    private function getDemoUserData(string $address): ?array {
         // Handle demo_ prefixed addresses
-        if (str_starts_with($address, 'demo_')) {
-            return $this->demoUsers[$address];
+        if ($this->startsWith($address, 'demo_')) {
+            return $this->demoUsers[$address] ?? null;
         }
         return $this->demoUsers[$address] ?? null;
     }
@@ -154,18 +158,54 @@ class checkController {
             
             $url .= '?' . http_build_query($params);
             
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'accept: application/json',
-                'x-api-key: ' . $this->apiKey
-            ]);
-            
-            $response = curl_exec($ch);
-            curl_close($ch);
+            if (function_exists('curl_init')) {
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'accept: application/json',
+                    'x-api-key: ' . $this->apiKey
+                ]);
+                
+                $response = curl_exec($ch);
+                $curlError = curl_error($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                if ($response === false) {
+                    return ['error' => 'Failed to reach Blockvision: ' . ($curlError ?: 'unknown cURL error')];
+                }
+
+                if ($httpCode >= 400) {
+                    return ['error' => 'Blockvision API returned HTTP ' . $httpCode];
+                }
+            } else {
+                $context = stream_context_create([
+                    'http' => [
+                        'method' => 'GET',
+                        'header' => "accept: application/json\r\nx-api-key: " . $this->apiKey . "\r\n",
+                        'ignore_errors' => true,
+                        'timeout' => 20,
+                    ]
+                ]);
+
+                $response = file_get_contents($url, false, $context);
+                $statusLine = $http_response_header[0] ?? '';
+
+                if ($response === false) {
+                    return ['error' => 'Failed to reach Blockvision. Enable the PHP cURL extension if this keeps happening.'];
+                }
+
+                if (preg_match('/\s(\d{3})\s/', $statusLine, $matches) && (int)$matches[1] >= 400) {
+                    return ['error' => 'Blockvision API returned HTTP ' . $matches[1]];
+                }
+            }
             
             $data = json_decode($response, true);
+
+            if (!is_array($data)) {
+                return ['error' => 'Blockvision returned an invalid response'];
+            }
             
             if (isset($data['result']['data'])) {
                 return [
@@ -222,8 +262,8 @@ class checkController {
     }
     
     public function analyzeWallet(string $address): array {
-        // Check for demo user first
-        if ($this->demoMode && $this->isDemoUser($address)) {
+        // Always allow built-in demo wallets as a fallback during local testing.
+        if ($this->isDemoUser($address)) {
             $demoData = $this->getDemoUserData($address);
             if ($demoData) {
                 return array_merge($demoData, ['success' => true, 'is_demo' => true]);
